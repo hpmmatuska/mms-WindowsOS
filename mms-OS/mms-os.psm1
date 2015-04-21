@@ -18,9 +18,9 @@
         - an alias is "p"
     
     parameter ShowIn:
-        B  - the default parameter represent not formated output of get-child item in bytes (as Int)
-        MB - represent formated output (string) in MegaBytes, sorted decreasing
-        GB - represent formated output (string) in GigaBytes, sorted decreasing
+        B  - output of get-child item in bytes (as double)
+        MB - output of get-child item in Mega Bytes (as double, rounded)
+        GB - output of get-child item in Giga Bytes (as double, rounded)
 
     .OUTPUTS
     The default output is:
@@ -31,10 +31,10 @@
     .Example
     List of current folder size and subfolder sizes:
 
-    PS C:\Temp> Get-FolderSize
+    PS C:\Temp> Get-FolderSize -ShowIn B
 
-    Path                                                                       Size
-    ----                                                                       ----
+    Path                                                                   Size (B)
+    ----                                                                   --------
     C:\Temp                                                                  935494
     C:\Temp\Microsoft Visual C++ 2010  x...                                       0
     C:\Temp\Microsoft Visual C++ 2010  x...                                       0
@@ -43,15 +43,14 @@
     .Example
     List of current folder size and subfolder sizes formated in MB
 
-    PS C:\Temp> Get-FolderSize -ShowIn MB
+    PS C:\Temp> mms-FolderSize -ShowIn MB |sort -Property size* -Descending
 
-    Path                                                                    Size (M
-                                                                            B)     
+    Path                                                                  Size (MB)     
     ----                                                                    -------
-    C:\Temp\pulse                                                           19,96  
-    C:\Temp                                                                 0,89   
-    C:\Temp\Microsoft Visual C++ 2010  x64 Redistributable Setup_10.0.40219 0,00   
-    C:\Temp\Microsoft Visual C++ 2010  x86 Redistributable Setup_10.0.40219 0,00   
+    C:\Temp\pulse                                                             19,96  
+    C:\Temp                                                                    0,89   
+    C:\Temp\Microsoft Visual C++ 2010  x64 Redistributable Setup_10.0.40219     0,0   
+    C:\Temp\Microsoft Visual C++ 2010  x86 Redistributable Setup_10.0.40219     0,0   
 
     .Example
     List of specified path subfolders size, formated in MB
@@ -62,15 +61,15 @@
 
     Path                            Size (MB)
     ----                            ---------
-    C:\RecoveryImage                2Â 816,05 
-    C:\RecoveryImage\Drivers        672,57   
-    C:\RecoveryImage\OEMInformation 0,21     
+    C:\RecoveryImage                20 816,05 
+    C:\RecoveryImage\Drivers           672,57   
+    C:\RecoveryImage\OEMInformation      0,21     
 
     .Example
     The example of piped folder with manual expression and sorting
 
     PS C:\>$env:systemroot | Get-FolderSize | 
-        sort size -Descending |
+        sort size* -Descending |
         select -First 10|
         format-table Path, @{Name="Size (GB)";Expression={"{0:N2}" -f ($_.size / 1GB)}} -AutoSize
 
@@ -89,7 +88,7 @@
 
     .Notes
     Last Updated: January 29, 2015
-    Version     : 1.0
+    Version     : 1.1
 
     .Link
     #>
@@ -102,34 +101,32 @@
         
         [parameter()]
         [ValidateSet('B','MB','GB')]
-        [String]$ShowIn
+        [String]$ShowIn = 'MB'
     )
-
-    Function Get-Sizes {
-            $obj = new-object psobject
-            add-member -inp $obj noteproperty Path $path
-            $size = (Get-ChildItem $path -ErrorAction SilentlyContinue | Measure-Object -Sum Length -ErrorAction SilentlyContinue).Sum
-            if ($Size -gt 0){add-member -inp $obj noteproperty Size $size} 
-            else {add-member -inp $obj noteproperty Size "0"}
-            $obj
-            get-childitem $path -ErrorAction SilentlyContinue | where {$_.PSIsContainer} | foreach {
-                $obj = new-object psobject
-                $size = (Get-ChildItem $_.FullName -recurse -ErrorAction SilentlyContinue| where {!$_.PSIsContainer} | Measure-Object -Sum Length).Sum
-                add-member -inp $obj noteproperty Path $_.fullName
-                if ($Size -gt 0){add-member -inp $obj noteproperty Size $size} 
-                else {add-member -inp $obj noteproperty Size "0"}
-                $obj
-            } #foreach
-    }#function get-sizes
 
     if (!$path){$path = Get-Location}
     if (test-path $Path) {
-        If ($ShowIn.ToUpper() -eq 'MB'){get-sizes |sort size -Descending |ft Path, @{Name="Size (MB)";Expression={"{0:N2}" -f ($_.size / 1MB)}} -AutoSize}
-        elseIf ($ShowIn.ToUpper() -eq 'GB'){get-sizes |sort size -Descending |ft Path, @{Name="Size (GB)";Expression={"{0:N2}" -f ($_.size / 1GB)}} -AutoSize}
-        else {Get-Sizes}
-    }  else {Write-Output ('Path "'+$Path+'" Does not exist')}
+        If ($ShowIn.ToUpper() -eq 'MB'){$divider = 1MB}
+        elseIf ($ShowIn.ToUpper() -eq 'GB'){$divider = 1GB}
+        else {$divider = 1}
 
-} #function get-foldersize
+
+        $size = [Math]::Round(((Get-ChildItem $path -ErrorAction SilentlyContinue | Measure-Object -Sum Length -ErrorAction SilentlyContinue).Sum / $divider),2)
+        [PSCustomObject]@{
+            Path = $Path
+            "Size ($ShowIn)" = $size
+        }
+        
+        get-childitem $path -ErrorAction SilentlyContinue | ?{$_.PSIsContainer} | %{
+            $size = [Math]::Round(((Get-ChildItem $_ -ErrorAction SilentlyContinue | Measure-Object -Sum Length -ErrorAction SilentlyContinue).Sum / $divider),2)
+            [PSCustomObject]@{
+                Path = $_.fullName
+                "Size ($ShowIn)" = $size
+            } 
+        }
+    }  else {Write-Warning ('Path "'+$Path+'" Does not exist')} 
+
+} #function get-foldersize 
 
 Function Get-Uptime {
     <#
