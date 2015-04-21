@@ -9,6 +9,18 @@ Function        Get-Uptime                                         1.0        mm
 Function        Test-Ping                                          1.0        mms-os   
 
 
+Installation Instruction:
+
+I personally like psget, which can install modules directly from the github:
+
+PS C:\> install psget: iex ((new-object Net.WebClient).DownloadString("http://psget.net/GetPsGet.ps1"))
+PS C:\> Install mms-WindowsOS: Install-Module -ModuleUrl https://github.com/hpmmatuska/mms-WindowsOS/archive/master.zip
+
+or you can download the zip and unpack folder mms-os to your modules folder:
+    1. download zip
+    2. c:\> $env:PSModulePath # unzip somewhere to this path
+    3. c:\> import-module mms-os
+
 #Get-FolderSize
 
 Utility simmilar to reskit tool diruse. Here is short example:
