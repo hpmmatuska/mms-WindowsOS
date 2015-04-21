@@ -1,13 +1,9 @@
 # mms-OS
 Some extension to basic windows commands
 
-CommandType     Name                                               Version    Source                                              
------------     ----                                               -------    ------                                              
-Function        Get-FolderSize                                     1.0        mms-os                                              
-Function        Get-RAFarm                                         1.0        mms-os                                              
-Function        Get-Uptime                                         1.0        mms-os                                              
-Function        Test-Ping                                          1.0        mms-os   
+[ADMIN] PS4 Desktop:\> Get-Command -Module mms-os
 
+CommandType     Name                                               ModuleName                                                -----------     ----                                               ----------                                                Function        Get-FolderSize                                     mms-os                                                    Function        Get-RAFarm                                         mms-os                                                    Function        Get-Uptime                                         mms-os                                                    Function        Test-Ping                                          mms-os                                                                                
 
 #Installation Instruction:
 
