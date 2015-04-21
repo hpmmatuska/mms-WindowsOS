@@ -3,7 +3,13 @@ Some extension to basic windows commands
 
 PS C:\> Get-Command -Module mms-os
 
-    CommandType     Name                                               ModuleName                                                -----------     ----                                               ----------                                                Function        Get-FolderSize                                     mms-os                                                    Function        Get-RAFarm                                         mms-os                                                    Function        Get-Uptime                                         mms-os                                                    Function        Test-Ping                                          mms-os                                                                                
+    CommandType     Name                                               ModuleName
+    -----------     ----                                               ----------
+    Function        Get-FolderSize                                     mms-os
+    Function        Get-RAFarm                                         mms-os
+    Function        Get-Uptime                                         mms-os
+    Function        Test-Ping                                          mms-os
+    
 
 #Installation Instruction:
 
