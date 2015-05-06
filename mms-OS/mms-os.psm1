@@ -161,14 +161,21 @@ Function Get-Uptime {
         [Parameter(Position=0,ValueFromPipeline,ValueFromPipelineByPropertyName)]
         [ValidateNotNullorEmpty()]
         [Alias("cn","name")]
-        [String[]]$ComputerName
+        [String[]]$ComputerName,
+
+        [System.Management.Automation.CredentialAttribute()]$credential
+
     )
     
-    Workflow Get-HostUptime{ Param([String[]]$ComputerName)
-            Foreach -parallel ($computer in $computername) {
+    Workflow Get-HostUptime{ 
+        Param(
+            [String[]]$ComputerName, 
+            [System.Management.Automation.CredentialAttribute()]$credential
+        )
+            Foreach -parallel ($computer in $computername){
                 sequence{
                     #InlineScript {
-                        Try {$wmi = gwmi Win32_OperatingSystem -PSComputerName $Computer -ErrorAction SilentlyContinue
+                        Try {$wmi = gwmi Win32_OperatingSystem -PSComputerName $Computer -PSCredential $credential -ErrorAction Stop
                             $LBTime = [System.Management.ManagementDateTimeconverter]::ToDateTime($wmi.LastBootUpTime)
                             $uptime = [DateTime]::Now - $LBTime
                             $Obj = [PSCustomObject] @{
@@ -196,7 +203,8 @@ Function Get-Uptime {
 
     $CurrentPath = Get-Location # to achieve no problems when workflow is called from custom mapped PSDrive
     Set-Location $env:SystemRoot # cange location before workflow
-    Get-HostUptime -ComputerName $ComputerName | sort-object -Property LastBootUpTime -Descending | Select-Object ComputerName,LastBootUpTime,Days,Hours,Minutes,Seconds, @{Name="TotalDays";Expression={"{0:N2}" -f $_.TotalDays}} | ft -autosize 
+    if ($Credential) {Get-HostUptime -ComputerName $ComputerName -Credential $credential | sort-object -Property LastBootUpTime -Descending | Select-Object ComputerName,LastBootUpTime,Days,Hours,Minutes,Seconds, @{Name="TotalDays";Expression={"{0:N2}" -f $_.TotalDays}} | ft -autosize }
+    else {Get-HostUptime -ComputerName $ComputerName | sort-object -Property LastBootUpTime -Descending | Select-Object ComputerName,LastBootUpTime,Days,Hours,Minutes,Seconds, @{Name="TotalDays";Expression={"{0:N2}" -f $_.TotalDays}} | ft -autosize }
     Set-Location $CurrentPath #return location to original path
 
 
