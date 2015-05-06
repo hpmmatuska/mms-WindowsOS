@@ -250,8 +250,8 @@ Function Test-Ping {
 
         suitable for basic availability of the server with negative results only (of course with timestamp)
     .Notes
-        Last Updated: April 17, 2015
-        Version     : 1.0
+        Last Updated: May 06, 2015
+        Version     : 1.1     
     #>
 
     [cmdletbinding()]
@@ -280,19 +280,19 @@ Function Test-Ping {
             write-host ""
             }
             do {
-                $ping = Test-Connection -Count 1 -BufferSize $BufferSize -TimeToLive $TimeToLive -ComputerName $ComputerName -ErrorAction SilentlyContinue 
-                if ($ping) {
-                    if(!$ShowOnlyFailed) {
-                        write-host `
-                            (get-date).ToString() + `
-                            "`tReply from: " + $ping.Address + `
-                            " `t " + $ping.IPV4Address + `
-                            " `t " + $ping.IPV6Address + `
-                            " `tBuffer Size: " + $ping.ReplySize + `
-                            " `tResponseTime (ms): " + $ping.ResponseTime
-                    }
+                try{
+                    $ping = Test-Connection -Count 1 -BufferSize $BufferSize -TimeToLive $TimeToLive -ComputerName $ComputerName -ErrorAction stop
+                        if(!$ShowOnlyFailed) {
+                            write-host `
+                                (get-date).ToString() + `
+                                "`tReply from: " + $ping.Address + `
+                                " `t " + $ping.IPV4Address + `
+                                " `t " + $ping.IPV6Address + `
+                                " `tBuffer Size: " + $ping.ReplySize + `
+                                " `tResponseTime (ms): " + $ping.ResponseTime
+                        }
                 }
-                else {Write-Warning ((Get-Date).ToString()+"`tReply Time out from destination "+$ComputerName.ToUpper())}
+                catch {Write-Warning ((Get-Date).ToString()+"`t" + $_.Exception.Message)}
                 Start-Sleep -m $DelayInMilliseconds
             } while ($true)
         } # if range = 0
