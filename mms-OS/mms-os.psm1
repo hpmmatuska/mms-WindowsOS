@@ -150,8 +150,8 @@ Function Get-Uptime {
     Formatted results for multiple computers. You can also pipe computer names into this command.
 
     .Notes
-    Last Updated: January 27, 2015
-    Version     : 1.0
+    Last Updated: May 06, 2015
+    Version     : 1.1
   
     .Link
     #>
