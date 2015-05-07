@@ -507,7 +507,7 @@ function Get-ServiceStatus {
     function query-service {
         try{
             if ($credential) {
-                if ($State -eq 'NotRunning') {Get-WmiObject Win32_Service -ComputerName $ComputerName -Credential $credential -ErrorAction stop| ? { $_.Name -like $Service -and $_.StartMode -like $StartMode -and $_.State -like 'Running' }}
+                if ($State -eq 'NotRunning') {Get-WmiObject Win32_Service -ComputerName $ComputerName -Credential $credential -ErrorAction stop| ? { $_.Name -like $Service -and $_.StartMode -like $StartMode -and $_.State -ne 'Running' }}
                 else {Get-WmiObject Win32_Service -ComputerName $ComputerName -Credential $credential -ErrorAction stop| ? { $_.Name -like $Service -and $_.StartMode -like $StartMode -and $_.State -like $State }}
             }
             else {
