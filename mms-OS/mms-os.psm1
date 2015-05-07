@@ -417,3 +417,114 @@ function Get-RAFarm {
         }#foreach $computer
         Write-Verbose "Function ends."
 } #end function RAFarm
+
+function Get-ServiceStatus {
+
+    <#
+    .Synopsis
+        List services, their startup type and current status.
+    .Description
+        This command will query the Win32_Service class using Get-WmiObject and return list of services.
+    .Parameter 
+        Computername - The name of the computer to query. This parameter has an alias of CN. The Input can be piped.
+        Service      - query for service name, supports wildcards
+        StartMode    - filter for service startup type
+        State        - filter for service current state
+        Do           - perform action for qeury results
+        Credential   - define run as account
+    .Input
+        [String]        <Computername> #suport pipe
+        [String[]]      <Service>      #support wildcard and hash table
+        [String]        <StartMode>    #validation set: 'Auto','Manual','Disabled','*' 
+        [String]        <State>        #validation set: 'NotRunning', 'Running', 'Stopped', 
+                                                        'Other', '*', 'Paused', 'Stopping', 
+                                                        'Starting', 'Resuming', 'Pausing'
+        [string]        <do>           #validation set: 'Start','Stop','Restart'
+        [PSCredentials] <Credential>   #hash: [string]name, [SecureString]password
+
+    .Example
+        List of all not running automatic services on remote machine
+
+    
+        PS C:\>Get-ServiceStatus -ComputerName Server1
+
+        ExitCode Name             ProcessId StartMode State   Status
+        -------- ----             --------- --------- -----   ------
+               0 ShellHWDetection         0 Auto      Stopped OK    
+               0 sppsvc                   0 Auto      Stopped OK    
+               0 wuauserv                 0 Auto      Stopped OK    
+
+    .Example
+        List of not running windows update server service on untrusted machine
+
+    
+        PS C:\>Get-ServiceStatus -ComputerName Server1 -Service wuau* -StartMode Auto -State * -Credentials (get-credential)
+
+        ExitCode Name             ProcessId StartMode State   Status
+        -------- ----             --------- --------- -----   ------
+               0 wuauserv                 0 Auto      Stopped OK    
+
+    .Example
+        Try to start all not runing automatic services
+
+    
+        PS C:\>Get-ServiceStatus -Do Start
+
+ 
+    .Notes
+    Last Updated: May 07, 2015
+    Version     : 1.0
+  
+    .Link
+    #>
+
+
+    [cmdletbinding()]
+    Param(
+        [Parameter(Position=0,ValueFromPipeline,ValueFromPipelineByPropertyName)]
+        [ValidateNotNullorEmpty()]
+        [Alias("cn","name")]
+        [String]$ComputerName = $env:COMPUTERNAME,
+
+        [System.Management.Automation.CredentialAttribute()]$credential,
+
+        [parameter()]
+        [String[]]$Service = '*',
+
+        [parameter()]
+        [ValidateSet('Auto','Manual','Disabled','*')]
+        [String]$StartMode = 'Auto',
+
+        [parameter()]
+        [ValidateSet('NotRunning', 'Running', 'Stopped', 'Other', '*', 'Paused', 'Stopping', 'Starting', 'Resuming', 'Pausing')]
+        [String]$State = 'NotRunning',
+
+        [parameter()]
+        [ValidateSet('Start','Stop','Restart')]
+        [String]$do
+    )
+
+    function query-service {
+        try{
+            if ($credential) {
+                if ($State -eq 'NotRunning') {Get-WmiObject Win32_Service -ComputerName $ComputerName -Credential $credential -ErrorAction stop| ? { $_.Name -like $Service -and $_.StartMode -like $StartMode -and $_.State -like 'Running' }}
+                else {Get-WmiObject Win32_Service -ComputerName $ComputerName -Credential $credential -ErrorAction stop| ? { $_.Name -like $Service -and $_.StartMode -like $StartMode -and $_.State -like $State }}
+            }
+            else {
+                if ($State -eq 'NotRunning') {Get-WmiObject Win32_Service -ComputerName $ComputerName -ErrorAction stop| ? { $_.Name -like $Service -and $_.StartMode -like $StartMode -and $_.State -ne 'Running' }}
+                else {Get-WmiObject Win32_Service -ComputerName $ComputerName -ErrorAction stop| ? { $_.Name -like $Service -and $_.StartMode -like $StartMode -and $_.State -like $State }}
+            } 
+        }#end try
+        catch {Write-Warning $_.exception.Message}
+    } #end query service function
+
+
+    switch ($do) {
+        start {query-service | Get-Service -ComputerName $ComputerName| Start-Service}
+        stop {query-service | Get-Service -ComputerName $ComputerName| Stop-Service}
+        restart {query-service | Get-Service -ComputerName $ComputerName| Restart-Service}
+        default {query-service | ft -AutoSize}
+    }
+    
+
+} # end Function ServiceStatus
