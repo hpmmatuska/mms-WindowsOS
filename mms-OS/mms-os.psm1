@@ -473,7 +473,7 @@ function Get-ServiceStatus {
  
     .Notes
     Last Updated: May 07, 2015
-    Version     : 1.0
+    Version     : 1.1
   
     .Link
     #>
@@ -493,11 +493,11 @@ function Get-ServiceStatus {
 
         [parameter()]
         [ValidateSet('Auto','Manual','Disabled','*')]
-        [String]$StartMode = 'Auto',
+        [String]$StartMode,
 
         [parameter()]
         [ValidateSet('NotRunning', 'Running', 'Stopped', 'Other', '*', 'Paused', 'Stopping', 'Starting', 'Resuming', 'Pausing')]
-        [String]$State = 'NotRunning',
+        [String]$State,
 
         [parameter()]
         [ValidateSet('Start','Stop','Restart')]
@@ -517,6 +517,15 @@ function Get-ServiceStatus {
         }#end try
         catch {Write-Warning $_.exception.Message}
     } #end query service function
+
+
+    if ($Service -eq '*') {
+        if (!$StartMode) {$StartMode = 'Auto'}
+        if (!$State) {$state = 'NotRunning'}
+    } else {
+        if (!$StartMode) {$StartMode = '*'}
+        if (!$State) {$state = '*'}
+    }
 
 
     switch ($do) {
