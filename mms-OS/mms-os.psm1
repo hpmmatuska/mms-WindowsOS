@@ -291,13 +291,13 @@ Function Test-Ping {
                 try{
                     $ping = Test-Connection -Count 1 -BufferSize $BufferSize -TimeToLive $TimeToLive -ComputerName $ComputerName -ErrorAction stop
                         if(!$ShowOnlyFailed) {
-                            write-host `
+                            write-host (`
                                 (get-date).ToString() + `
                                 "`tReply from: " + $ping.Address + `
                                 " `t " + $ping.IPV4Address + `
                                 " `t " + $ping.IPV6Address + `
                                 " `tBuffer Size: " + $ping.ReplySize + `
-                                " `tResponseTime (ms): " + $ping.ResponseTime
+                                " `tResponseTime (ms): " + $ping.ResponseTime)
                         }
                 }
                 catch {Write-Warning ((Get-Date).ToString()+"`t" + $_.Exception.Message)}
