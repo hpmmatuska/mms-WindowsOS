@@ -537,3 +537,10 @@ function Get-ServiceStatus {
     
 
 } # end Function ServiceStatus
+
+Function Update-MMSmodules {
+    $AvailableModules = get-module -listavailable
+    if ( $AvailableModules.Name -notcontains 'PsGet') {(new-object Net.WebClient).DownloadString("http://psget.net/GetPsGet.ps1") | iex}
+    if ( $AvailableModules.Name -notcontains 'mms-os') {Install-Module -ModuleUrl https://github.com/hpmmatuska/mms-WindowsOS/archive/master.zip} 
+    else {Install-Module -ModuleUrl https://github.com/hpmmatuska/mms-WindowsOS/archive/master.zip -Update}
+} # End of module update
