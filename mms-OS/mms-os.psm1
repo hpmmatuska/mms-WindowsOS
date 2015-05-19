@@ -544,3 +544,134 @@ Function Update-MMSmodules {
     if ( $AvailableModules.Name -notcontains 'mms-os') {Install-Module -ModuleUrl https://github.com/hpmmatuska/mms-WindowsOS/archive/master.zip} 
     else {Install-Module -ModuleUrl https://github.com/hpmmatuska/mms-WindowsOS/archive/master.zip -Update}
 } # End of module update
+
+Function Test-Port {
+
+    <#
+    .Synopsis
+        Do a test for open ports against remote machine
+    .Description
+        Will create sample connection to remote machine on specified port (as classic telnet client)
+    .Parameter Computername
+        The name of the computer to query. The Input can be piped, it is default 1st parameter
+    .Parameter Port
+        The range of ports to query. It is default 2nd parameter
+    .Parameter TCPTimeout
+        Timeout for test connection. Default Value is 100 miliseconds
+    .Parameter Async
+        Default is synchron test for input port range. When you specify more than 400 ports, the Async parameter is
+        set automatically.
+    .Example
+        PS C:\> test-port pc01 80
+ 
+        Computername Port IsOpen Notes                              
+        ------------ ---- ------ -----                              
+        pc01         80  False Timeout occurred connecting to port
+ 
+    
+        Test PC01 if listen on port 80.
+
+    .Example
+        PS C:\> test-port pc01 | ?{$_.IsOpen}
+ 
+        Computername Port IsOpen Notes                              
+        ------------ ---- ------ -----                              
+        pc01         80  False Timeout occurred connecting to port
+ 
+    
+        Test PC01 for all open ports.
+
+    .Notes
+        Last Updated: May 19, 2015
+        Version     : 1.0
+  
+    .Link
+    #>
+
+    [cmdletbinding()]
+    Param(
+        [Parameter(Position=0,ValueFromPipeline,ValueFromPipelineByPropertyName)]
+        [ValidateNotNullorEmpty()]
+        [Alias("cn","name")][String]$ComputerName,
+        [Parameter(Position=1)]
+        [int[]]$Port = (1..65535),
+        [int]$TCPTimeout = 100, #in miliseconds
+        [switch]$Async = $false
+    )
+
+    Begin {
+        if ($port.count > 400){$async = $true}
+        Function Test-PortSynchronly {Param($ComputerName, $Port)
+                    $TCPClient  = New-Object  -TypeName   System.Net.Sockets.TCPClient
+                    $AsyncResult  = $TCPClient.BeginConnect($Computername,$Port,$null,$null)
+                    $Wait = $AsyncResult.AsyncWaitHandle.WaitOne($TCPtimeout) 
+                    If ($Wait) {
+                        Try {$Null  = $TCPClient.EndConnect($AsyncResult)} 
+                        Catch {$Issue  = $_.Exception.Message} 
+                        Finally {
+                            [pscustomobject]@{
+                                Computername = $Computername
+                                Port =  $Item
+                                IsOpen =  $TCPClient.Connected
+                                Notes =  $Issue
+                            }
+                        }
+                    } Else {
+                        [pscustomobject]@{
+                            Computername = $Computername
+                            Port =  $Item
+                            IsOpen =  $TCPClient.Connected
+                            Notes =  'Timeout occurred connecting to port'
+                        }    
+                    }    
+        }
+        Workflow Test-PortAsynchronly {Param($ComputerName, [int[]]$Port)
+                ForEach -parallel ($Item  in $Port)  {
+                    InlineScript {
+                        $TCPClient = New-Object -TypeName System.Net.Sockets.TCPClient
+                        $Task = $TCPClient.ConnectAsync($Using:Computername,$Using:Item)
+                        Start-Sleep -Milliseconds $TCPTimeout
+                        # while ($task.IsCompleted){Start-Sleep -Milliseconds 100}
+                        [pscustomobject]@{
+                            Computername = $Using:Computername
+                            Port =  $using:Item
+                            IsOpen =  $TCPClient.Connected #not working properly
+                            #IsOpen = !$task.IsFaulted  #not working properly
+                            Notes =  $Task.Exception.InnerException
+                        }
+                        $Issue = $Null
+                        if ($task.IsCompleted -or $Task.IsCanceled -or $Task.IsFaulted) {$TCPClient.Dispose()}
+                    }
+                } # foreach port
+        }
+    }
+    Process {
+        Try {$null = test-connection -ComputerName $ComputerName -Count 1 -Quiet -ErrorAction SilentlyContinue; $ping=$null}
+        Catch {$ping = $_.Exception.Message}
+        if (!$ping) {
+            if (!$async) {        
+                ForEach ($Item  in $Port)  {
+                    #write-progress
+                    Test-PortSynchronly -Computername $ComputerName -port $Item    
+                } # foreach port
+            } #sync test
+            else {
+                $CurrentPath = Get-Location # to achieve no problems when workflow is called from custom mapped PSDrive
+                Set-Location $env:SystemRoot # cange location before workflow    
+                Test-PortAsynchronly -ComputerName $ComputerName -Port $Port |
+                    sort -Property Port |
+                    ft ComputerName, Port, IsOpen, Notes -AutoSize 
+                Set-Location $CurrentPath #return location to original path   
+            } # async test
+        } # if ping OK
+        else {
+            [pscustomobject]@{
+                Computername = $Computername
+                Port =  '*'
+                IsOpen =  $TCPClient.Connected
+                Notes =  $ping
+            }    
+        } # if no ping
+    }
+    End {}
+} # End function test-port
