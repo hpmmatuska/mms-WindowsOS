@@ -576,7 +576,10 @@ Function Test-Port {
  
         Computername Port IsOpen Notes                              
         ------------ ---- ------ -----                              
-        pc01         80  False Timeout occurred connecting to port
+        pc01         135   True 
+        pc01         139   True 
+        pc01         445   True 
+        pc01         5555  True 
  
     
         Test PC01 for all open ports.
