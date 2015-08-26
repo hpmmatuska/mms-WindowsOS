@@ -1,7 +1,7 @@
 ﻿Function Get-FolderSize {
     <#
     .Synopsis
-    The function will return folder size and list of first level subfolders size.
+    The function will return folder size and list of first level subfolders with their size.
     
     .Description
     The function is simmilar to reskit command "diruse" or unix tool "du". The output is sum value of file sizes 
@@ -25,70 +25,64 @@
     .OUTPUTS
     The default output is:
     [String]Path
-    [Int]Size - when "ShowIn" param is missing, or
-    [String]Size - formated Int output with expression "{0:N2}"
+    [Int]Size - formated with function round to 2 decimal places
+    [Int]Count - recursion for all subfolders
+    [Int]Avg
+    [Int]Min
+    [Int]Max
+    [Str]Unit
+
     
     .Example
     List of current folder size and subfolder sizes:
 
-    PS C:\Temp> Get-FolderSize -ShowIn B
+    PS C:\temp> Get-FolderSize -ShowIn B
 
-    Path                                                                   Size (B)
-    ----                                                                   --------
-    C:\Temp                                                                  935494
-    C:\Temp\Microsoft Visual C++ 2010  x...                                       0
-    C:\Temp\Microsoft Visual C++ 2010  x...                                       0
-    C:\Temp\pulse                                                          20924852
+    Path              Size Unit
+    ----              ---- ----
+    C:\temp              0 B   
+    C:\temp\pulse 21726117 B
 
     .Example
     List of current folder size and subfolder sizes formated in MB
 
-    PS C:\Temp> mms-FolderSize -ShowIn MB |sort -Property size* -Descending
+    PS C:\Program Files (x86)> Get-FolderSize -ShowIn MB | sort -Property Size -Descending |select -First 5
 
-    Path                                                                  Size (MB)     
-    ----                                                                    -------
-    C:\Temp\pulse                                                             19,96  
-    C:\Temp                                                                    0,89   
-    C:\Temp\Microsoft Visual C++ 2010  x64 Redistributable Setup_10.0.40219     0,0   
-    C:\Temp\Microsoft Visual C++ 2010  x86 Redistributable Setup_10.0.40219     0,0   
+    Path                                                 Size Unit
+    ----                                                 ---- ----
+    C:\Program Files (x86)\Google                      698,19 MB  
+    C:\Program Files (x86)\Common Files                310,61 MB  
+    C:\Program Files (x86)\Adobe                       172,27 MB  
+    C:\Program Files (x86)\Devolutions                  135,2 MB  
+    C:\Program Files (x86)\Microsoft Analysis Services  98,15 MB  
 
     .Example
-    List of specified path subfolders size, formated in MB
+    List of specified path subfolders size, formated in MB with advanced view
 
-    PS C:\> Get-FolderSize C:\RecoveryImage -ShowIn MB
-    PS C:\> Get-FolderSize -p C:\RecoveryImage -ShowIn MB
-    PS C:\> Get-FolderSize -path C:\RecoveryImage -ShowIn MB
+    PS C:\> Get-FolderSize C:\RecoveryImage -ShowIn MB | ft * -AutoSize
 
-    Path                            Size (MB)
-    ----                            ---------
-    C:\RecoveryImage                20 816,05 
-    C:\RecoveryImage\Drivers           672,57   
-    C:\RecoveryImage\OEMInformation      0,21     
+    Path                            Count     Avg Min     Max    Size Unit
+    ----                            -----     --- ---     ---    ---- ----
+    C:\RecoveryImage                    2 1222,28   0 2444,56 2444,56 MB  
+    C:\RecoveryImage\Drivers         1354    0,64   0   24,78  860,86 MB  
+    C:\RecoveryImage\OEMInformation    11    0,02   0    0,17    0,21 MB  
 
     .Example
     The example of piped folder with manual expression and sorting
 
-    PS C:\>$env:systemroot | Get-FolderSize | 
-        sort size* -Descending |
-        select -First 10|
-        format-table Path, @{Name="Size (GB)";Expression={"{0:N2}" -f ($_.size / 1GB)}} -AutoSize
+    PS C:\> $env:SystemRoot | Get-FolderSize | sort -Property Size -Descending |select -First 5 | ft * -AutoSize
 
-    Path                     Size (MB)
-    ----                     ---------
-    C:\WINDOWS\WinSxS        6,11     
-    C:\WINDOWS\System32      3,52     
-    C:\WINDOWS\SysWOW64      1,20     
-    C:\WINDOWS\assembly      0,85     
-    C:\WINDOWS\Microsoft.NET 0,67     
-    C:\WINDOWS\Fonts         0,59     
-    C:\WINDOWS\Globalization 0,20     
-    C:\WINDOWS\IME           0,16     
-    C:\WINDOWS\Panther       0,14     
-    C:\WINDOWS\Speech        0,12     
+    Path                Count   Avg Min    Max    Size Unit
+    ----                -----   --- ---    ---    ---- ----
+    C:\WINDOWS\WinSxS   60148  0,12   0 110,67 7071,48 MB  
+    C:\WINDOWS\System32 18122  0,28   0 126,35 5064,22 MB  
+    C:\WINDOWS\SysWOW64  5569  0,23   0  44,07 1294,78 MB  
+    C:\WINDOWS\assembly  1008     1   0  31,16 1007,53 MB  
+    C:\WINDOWS             38 22,06   0 827,95  838,17 MB  
 
     .Notes
-    Last Updated: January 29, 2015
-    Version     : 1.1
+    Last Updated: August 26, 2015
+    Version     : 1.2
 
     .Link
     #>
@@ -110,31 +104,51 @@
         elseIf ($ShowIn.ToUpper() -eq 'GB'){$divider = 1GB}
         else {$divider = 1}
 
+        ##Set up the default display set and create the member set object for use later on
+        #Configure a default display set
+        $defaultDisplaySet = 'Path','Size','Unit'
+
+        #Create the default property display set
+        $defaultDisplayPropertySet = New-Object System.Management.Automation.PSPropertySet(‘DefaultDisplayPropertySet’,[string[]]$defaultDisplaySet)
+        $PSStandardMembers = [System.Management.Automation.PSMemberInfo[]]@($defaultDisplayPropertySet)
+
 
         $size = Get-ChildItem $path -ErrorAction SilentlyContinue |  Measure-Object -Sum Length -Average -Maximum -Minimum -ErrorAction SilentlyContinue
-        [PSCustomObject]@{
-            Path = $Path
-            "FilesCount" = $size.Count
-            "AvgFileSize ($ShowIn)" = [Math]::Round($size.Average/$divider,2)
-            "MinSize ($ShowIn)" = [Math]::Round($size.Minimum/$divider,2)
-            "MaxSize ($ShowIn)" = [Math]::Round($size.Maximum/$divider,2)
-            "Size ($ShowIn)" = [Math]::Round($size.sum/$divider,2)  
+        $object = [PSCustomObject]@{
+            "Path" = $Path
+            "Count" = $size.Count
+            "Avg" = [Math]::Round($size.Average/$divider,2)
+            "Min" = [Math]::Round($size.Minimum/$divider,2)
+            "Max" = [Math]::Round($size.Maximum/$divider,2)
+            "Size" = [Math]::Round($size.sum/$divider,2)  
+            "Unit" = $ShowIn
         }
+        #Give this object a unique typename
+        $object.PSObject.TypeNames.Insert(0,'Folder.Measure')
+        $object | Add-Member MemberSet PSStandardMembers $PSStandardMembers
+        #Show object that shows only what I specified by default
+        $object
         
         get-childitem $path -ErrorAction SilentlyContinue | ?{$_.PSIsContainer} | %{
             $size = Get-ChildItem $_.FullName -Filter * -Recurse -ErrorAction SilentlyContinue |  Measure-Object -Sum Length -Average -Maximum -Minimum -ErrorAction SilentlyContinue
-            [PSCustomObject]@{
-                "Path" = $Path
-                "FilesCount" = $size.Count
-                "AvgFileSize ($ShowIn)" = [Math]::Round($size.Average/$divider,2)
-                "MinSize ($ShowIn)" = [Math]::Round($size.Minimum/$divider,2)
-                "MaxSize ($ShowIn)" = [Math]::Round($size.Maximum/$divider,2)
-                "Size ($ShowIn)" = [Math]::Round($size.sum/$divider,2)  
+            $object = [PSCustomObject]@{
+                "Path" = $_.FullName
+                "Count" = $size.Count
+                "Avg" = [Math]::Round($size.Average/$divider,2)
+                "Min" = [Math]::Round($size.Minimum/$divider,2)
+                "Max" = [Math]::Round($size.Maximum/$divider,2)
+                "Size" = [Math]::Round($size.sum/$divider,2)  
+                "Unit" = $ShowIn
             } 
+            $object.PSObject.TypeNames.Insert(0,'Folder.Measure')
+            $object | Add-Member MemberSet PSStandardMembers $PSStandardMembers
+            #Show object that shows only what I specified by default
+            $object
         }
     }  else {Write-Warning ('Path "'+$Path+'" Does not exist')} 
 
 } #function get-foldersize 
+
 
 Function Get-Uptime {
     <#
