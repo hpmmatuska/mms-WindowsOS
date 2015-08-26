@@ -111,17 +111,25 @@
         else {$divider = 1}
 
 
-        $size = [Math]::Round(((Get-ChildItem $path -ErrorAction SilentlyContinue | Measure-Object -Sum Length -ErrorAction SilentlyContinue).Sum / $divider),2)
+        $size = Get-ChildItem $path -ErrorAction SilentlyContinue |  Measure-Object -Sum Length -Average -Maximum -Minimum -ErrorAction SilentlyContinue
         [PSCustomObject]@{
             Path = $Path
-            "Size ($ShowIn)" = $size
+            "FilesCount" = $size.Count
+            "AvgFileSize ($ShowIn)" = [Math]::Round($size.Average/$divider,2)
+            "MinSize ($ShowIn)" = [Math]::Round($size.Minimum/$divider,2)
+            "MaxSize ($ShowIn)" = [Math]::Round($size.Maximum/$divider,2)
+            "Size ($ShowIn)" = [Math]::Round($size.sum/$divider,2)  
         }
         
         get-childitem $path -ErrorAction SilentlyContinue | ?{$_.PSIsContainer} | %{
-            $size = [Math]::Round(((Get-ChildItem $_ -ErrorAction SilentlyContinue | Measure-Object -Sum Length -ErrorAction SilentlyContinue).Sum / $divider),2)
+            $size = Get-ChildItem $_.FullName -Filter * -Recurse -ErrorAction SilentlyContinue |  Measure-Object -Sum Length -Average -Maximum -Minimum -ErrorAction SilentlyContinue
             [PSCustomObject]@{
-                Path = $_.fullName
-                "Size ($ShowIn)" = $size
+                "Path" = $Path
+                "FilesCount" = $size.Count
+                "AvgFileSize ($ShowIn)" = [Math]::Round($size.Average/$divider,2)
+                "MinSize ($ShowIn)" = [Math]::Round($size.Minimum/$divider,2)
+                "MaxSize ($ShowIn)" = [Math]::Round($size.Maximum/$divider,2)
+                "Size ($ShowIn)" = [Math]::Round($size.sum/$divider,2)  
             } 
         }
     }  else {Write-Warning ('Path "'+$Path+'" Does not exist')} 
