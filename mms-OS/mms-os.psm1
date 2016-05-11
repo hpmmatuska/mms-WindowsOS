@@ -329,7 +329,9 @@ Function Test-Ping {
         else {
 
           
-            $pattern = "^(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)$" ##REGEX test for IP            if ($ComputerName -match $pattern){ #REGEX test for IP                $ipbase = ($computername.Split('.'))[0]+'.'+ ($computername.Split('.'))[1] +'.'+ ($computername.Split('.'))[2] + '.'
+            $pattern = "^(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)$" ##REGEX test for IP
+            if ($ComputerName -match $pattern){ #REGEX test for IP
+                $ipbase = ($computername.Split('.'))[0]+'.'+ ($computername.Split('.'))[1] +'.'+ ($computername.Split('.'))[2] + '.'
                 ( ([int]($computername.Split('.')[3])) .. ([int](($computername.Split('.'))[3])+$range) ) | %{
                     if ($_ -le 255) {
                         $ping = Test-Connection -ComputerName ($ipbase + $_.ToString()) -Count 1 -Quiet -ErrorAction SilentlyContinue
@@ -338,7 +340,8 @@ Function Test-Ping {
                     }
                     else {Write-Warning ($ipbase + $_ + "`tis not valid IP.")}
                 }        
-            } #REGEX test for IP            else {write-warning "$ip is not an valid IPv4 address. We are able to proceed only IPv4 with parameter 'Range'"}
+            } #REGEX test for IP
+            else {write-warning "$ip is not an valid IPv4 address. We are able to proceed only IPv4 with parameter 'Range'"}
         } # if range ne 0
     } # if one host
     else {
