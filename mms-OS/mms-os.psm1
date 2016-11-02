@@ -328,9 +328,7 @@ Function Test-Ping {
         else {
 
           
-            $pattern = "^(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)$" ##REGEX test for IP
-            if ($ComputerName -match $pattern){ #REGEX test for IP
-                $ipbase = ($computername.Split('.'))[0]+'.'+ ($computername.Split('.'))[1] +'.'+ ($computername.Split('.'))[2] + '.'
+            $pattern = "^(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)$" ##REGEX test for IP            if ($ComputerName -match $pattern){ #REGEX test for IP                $ipbase = ($computername.Split('.'))[0]+'.'+ ($computername.Split('.'))[1] +'.'+ ($computername.Split('.'))[2] + '.'
                 ( ([int]($computername.Split('.')[3])) .. ([int](($computername.Split('.'))[3])+$range) ) | %{
                     if ($_ -le 255) {
                         $ping = Test-Connection -ComputerName ($ipbase + $_.ToString()) -Count 1 -Quiet -ErrorAction SilentlyContinue
@@ -339,8 +337,7 @@ Function Test-Ping {
                     }
                     else {Write-Warning ($ipbase + $_ + "`tis not valid IP.")}
                 }        
-            } #REGEX test for IP
-            else {write-warning "$ip is not an valid IPv4 address. We are able to proceed only IPv4 with parameter 'Range'"}
+            } #REGEX test for IP            else {write-warning "$ip is not an valid IPv4 address. We are able to proceed only IPv4 with parameter 'Range'"}
         } # if range ne 0
     } # if one host
     else {
@@ -703,74 +700,96 @@ Function Test-Port {
     End {}
 } # End function test-port
 
-function Get-AvailableUpdates { # functional for windows server 2016
-    [CmdletBinding()]
-    param (
-        [Parameter(Mandatory)]
-        [ValidateNotNullOrEmpty()]
-        [String[]] $Servers,
-        [PSCredential] $Credential,
-        [Switch] $Install,
-        [Switch] $Restart
-    )
-    $servers | foreach-object {
-        $session = New-CimSession `
-            -ComputerName $_ `
-            -Credential $credential
-        $instance =  New-CimInstance `
-            -Namespace root/Microsoft/Windows/WindowsUpdate `
-            -ClassName MSFT_WUOperationsSession `
-            -CimSession $session
-        # Due to a bug in CIM on Nano Server (TP4 and TP5) an error is returned when
-        # there are no available updates.
-        # We use ErrorAction SilentlyContinue to ignore this (DON'T do this in a production script!!!!)
-        $scanResults = @($Instance | Invoke-CimMethod `
-            -MethodName ScanForUpdates `
-            -Arguments @{SearchCriteria="IsInstalled=0";OnlineScan=$true} `
-            -CimSession $session `
-            -errorAction SilentlyContinue)
-        if ($scanResults)
-        {
-            "$_ has $($scanResults.Count) updates to be installed:"
-            if ($install)
-            {
-                $installResult = $Instance | Invoke-CimMethod `
-                    -MethodName ApplyApplicableUpdates `
-                    -CimSession $Session
-                if ($installResult.ReturnValue -eq 0)
-                {
-                    'Updates were installed successfully:'
-                    $scanResults.Updates
-                    if ($Restart)
-                    {
-                        "Restarting $_"
-                        Invoke-Command `
-                            -ComputerName $_ `
-                            -Credential $credential `
-                            -ScriptBlock { Restart-Computer }
-                    }
-                    else
-                    {
-                        'You may need to reboot this server for update installation to complete.'
-                    }
-                }
-                else
-                {
-                    'An error occurred installing updates:'
-                    $installResult
-                }
-            }
-            else
-            {
-                'Set -Install flag to install updates'
-                $scanResults.Updates
-            } # if
-        }
-        else
-        {
-            "$_ has no updates to be installed."
-        } # if
-        Remove-CimSession `
-            -CimSession $session
-    } # foreach-object
-} # function Get-AvailableUpdates
+function Get-UPDReport {
+
+    <#
+    .Synopsis
+        Get details about User Profile Disks.
+    .Description
+        The function will get the list of the root folder, assign to the files the owners 
+        from AD and check the status of the AD account.
+    .Parameter UPDPath
+        Root path of the UPD
+    .Example
+        PS C:\> test-port pc01 80
+ 
+        Computername Port IsOpen Notes                              
+        ------------ ---- ------ -----                              
+        pc01         80  False Timeout occurred connecting to port
+ 
+    
+        Test PC01 if listen on port 80.
+
+    .Example
+        PS C:\> Get-UPDReport -UPDPath \\hpfscl-upd\Admin_Desktops | ft -a
+ 
+        FullName                                                                            LastWriteTime       Size SID                                           AD_Account_Name            AD_Account_UPN                        AD_User_Enabled AD_User_LastLogon         
+        --------                                                                            -------------       ---- ---                                           ---------------            --------------                        --------------- -----------------         
+        \\hpfscl-upd\Admin_Desktops\UVHD-S-1-5-21-169187442-3376254533-2070726858-????.vhdx 2.11.2016 9:29:37   2084 S-1-5-21-169187442-3376254533-2070726858-???? John Dou                   xyz@domain.com                                   True 28.10.2016 11:46:42       
+        \\hpfscl-upd\Admin_Desktops\UVHD-S-1-5-21-169187442-3376254533-2070726858-????.vhdx 2.11.2016 9:27:52    356 S-1-5-21-169187442-3376254533-2070726858-???? Alex Prop                  yzx@domain.com                                   True 27.10.2016 9:48:09        
+        \\hpfscl-upd\Admin_Desktops\UVHD-S-1-5-21-169187442-3376254533-2070726858-????.vhdx 2.11.2016 9:13:42    932 S-1-5-21-169187442-3376254533-2070726858-???? Jozef Hell                 zyx@domain.com                                   True 24.10.2016 18:18:45       
+        
+
+    .Notes
+        Last Updated: Nov 2, 2016
+        Version     : 1.0
+  
+    .Link
+    #>
+
+
+    [CmdletBinding()] 
+    Param( 
+        [Parameter(Mandatory=$True)] 
+        [ValidateNotNull()] 
+        [String]$UPDPath 
+    ) 
+  
+    $3f = @() 
+    $1f = Get-ChildItem $UPDPath -Recurse | where {!$_.PSIsContainer} | Select-Object FullName,LastWriteTime,@{Name="Size";Expression={$_.Length / 1MB}} | sort LastWriteTime -Descending 
+ 
+    foreach ($2f in $1f) { 
+        $SID = $2f.FullName -replace('.*UVHD-','') -replace('.vhdx','') 
+        $p1 = @{
+            "FullName"=$2f.FullName; 
+            "LastWriteTime"=$2f.LastWriteTime; 
+            "Size"=$2f.Size; 
+            "SID"=$SID
+        } 
+        $3f += New-Object -TypeName PSObject -Property $p1 
+    } 
+ 
+    foreach ($4f in $3f) { 
+        $a = @() 
+        $e = @() 
+        $ErrorActionPreference = 'SilentlyContinue' 
+        $a = Get-ADUser $4f.SID -Properties Name,UserPrincipalName,Enabled,LastLogonDate -ErrorVariable e 
+ 
+        if ($e) { 
+            $p2 = @{
+                "FullName"=$4f.FullName; 
+                "LastWriteTime"=$4f.LastWriteTime; 
+                "Size"=$4f.Size; 
+                "SID"="No AD Account for this UPD"; 
+                "AD_Account_Name"="No AD Account for this UPD"; 
+                "AD_Account_UPN"="No AD Account for this UPD"; 
+                "AD_User_Enabled"="No AD Account for this UPD"; 
+                "AD_User_LastLogon"="No AD Account for this UPD"} 
+            } 
+        else { 
+            $p2 = @{
+                "FullName"=$4f.FullName; 
+                "LastWriteTime"=$4f.LastWriteTime; 
+                "Size"=$4f.Size; 
+                "SID"=$4f.SID; 
+                "AD_Account_Name"=$a.Name; 
+                "AD_Account_UPN"=$a.UserPrincipalName; 
+                "AD_User_Enabled"=$a.Enabled; 
+                "AD_User_LastLogon"=$a.LastLogonDate
+            } 
+        } 
+        $Obj = New-Object -TypeName PSObject -Property $p2 
+        Write-Output $Obj | select FullName,LastWriteTime,Size,SID,AD_Account_Name,AD_Account_UPN,AD_User_Enabled,AD_User_LastLogon 
+    }
+}
+
