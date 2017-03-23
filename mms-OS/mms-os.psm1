@@ -551,14 +551,34 @@ function Get-ServiceStatus {
         if (!$State) {$state = '*'}
     }
 
-
+    <#
     switch ($do) {
         start {query-service | Get-Service -ComputerName $ComputerName| Start-Service}
         stop {query-service | Get-Service -ComputerName $ComputerName| Stop-Service}
         restart {query-service | Get-Service -ComputerName $ComputerName| Restart-Service}
         default {query-service | ft -AutoSize}
+
+        Name                  MemberType
+        ----                  ----------
+        Change                Method
+        ChangeStartMode       Method
+        Delete                Method
+        GetSecurityDescriptor Method
+        InterrogateService    Method
+        PauseService          Method
+        ResumeService         Method
+        SetSecurityDescriptor Method
+        StartService          Method
+        StopService           Method
+        UserControlService    Method
     }
-    
+    #>
+    switch ($do) {
+        start {query-service | %{$_.StartService()}}
+        stop {query-service | %{$_.StopService()}}
+        restart {query-service | %{$_.StopService(); $_.StartService()}}
+        default {query-service | ft -AutoSize}
+    }
 
 } # end Function ServiceStatus
 
